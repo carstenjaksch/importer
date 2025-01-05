@@ -35,6 +35,10 @@ class AssetsTransformer extends AbstractTransformer
         }
 
         $assets = collect(explode('|', $value))->map(function ($path) use ($assetContainer, $relatedField, $baseUrl) {
+            if (str_starts_with($baseUrl, '/') && preg_match($baseUrl, $path, $matches)) {
+                $baseUrl = $matches[0];
+            }
+
             $path = Str::of($path)
                 ->when($relatedField === 'url' && $baseUrl, function ($str) use ($baseUrl) {
                     return $str->after($baseUrl);
@@ -42,7 +46,12 @@ class AssetsTransformer extends AbstractTransformer
                 ->trim('/')
                 ->__toString();
 
-            $asset = $assetContainer->asset($path);
+            $assetPath = $path;
+            if ($this->config('folder')) {
+                $assetPath = Str::ensureRight($this->config('folder'), '/').$path;
+            }
+
+            $asset = $assetContainer->asset($assetPath);
 
             if (! $asset && $this->config('download_when_missing') && $relatedField === 'url') {
                 $request = Http::get(Str::removeRight($baseUrl, '/').Str::ensureLeft($path, '/'));
